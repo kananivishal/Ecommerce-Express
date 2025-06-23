@@ -18,12 +18,7 @@ const userSchema = new mongoose.Schema(
             minlength: 6,
             required: true
         },
-        phone: {
-            type: Number,
-            trim: true,
-            minlength: 10,
-            required: true
-        },
+        
         role: {
             type: String,
             default: 'user'
@@ -35,6 +30,6 @@ const userSchema = new mongoose.Schema(
     }
 )
 
-const User = mongoose.model('User,userSchema')
+const User = mongoose.model('User',userSchema)
 
-module.exports = { User }
+module.exports = { User };
