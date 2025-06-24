@@ -7,14 +7,14 @@ const singup = async (req, res) => {
         let { name, email, password } = req.body
 
         if (!name || !email || !password) {
-            res.status(404).json({
+            res.status(400).json({
                 message: "Some fields are missing"
             })
         }
 
         const isUserAlreadyExist = await User.findOne({ email })
         if (isUserAlreadyExist) {
-            return res.status(404).json({
+            return res.status(400).json({
                 message: "User already exist"
             })
         }
@@ -76,6 +76,7 @@ const login = async (req, res) => {
         })
     }
     catch (error) {
+        console.log(error)
         res.status(500).json({
             message: "Internal server error"
         })
