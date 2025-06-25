@@ -101,23 +101,54 @@ const updateproduct = async (req, res) => {
         let { token } = req.headers
         const decodedToken = jwt.verify(token, 'supersecret')
         const user = await User.findOne({ email: decodedToken.email })
-        if(user){
+        if (user) {
             const product = await Product.findById(id)
-            if(!product){
+            if (!product) {
                 res.status(400).json({
-                    message:"Product not found"
+                    message: "Product not found"
                 })
             }
-            const updatData = req.body
-            const updatedProduct =  await Product.findByIdAndUpdate(id, updatData, {
-                new:true
+            let { name, price, image, description, brand, stock } = req.body
+
+            // Update using findByIdAndUpdate mathod
+            const updatedProduct = await Product.findByIdAndUpdate(id, {
+                name,
+                price,
+                image,
+                description,
+                brand,
+                stock
             })
             return res.status(200).json({
-                message:"Product updated successfully",
-                product:updatedProduct
+                message: "Product updated successfully",
+                product: { id, name, price, image, description, brand, stock }
             })
+
+            // Another Way - Using updateOne Method
+
+            // const updatedProduct = await Product.updateOne({_id:id},{
+            //     name,
+            //     price,
+            //     image,
+            //     description,
+            //     brand,
+            //     stock
+            // })
+
+            // Another Way - Using { new: true } is an option that ensures the updated document is returned rather than the old one. Without it, Mongoose would return the document before the update was applied.
+
+            // const updatData = req.body
+            // const updatedProduct = await Product.findByIdAndUpdate(id, updatData, {
+            //     new: true
+            // })
+            // return res.status(200).json({
+            //     message: "Product updated successfully",
+            //     product: updatedProduct
+            // })
+
         }
     } catch (error) {
+        console.log(error)
         res.status(500).json({
             message: "Internal Server Error"
         })
@@ -143,9 +174,14 @@ const deleteproduct = async (req, res) => {
                     message: "Product not found"
                 })
             }
-            await Product.deleteOne({
-                _id: id
-            })
+
+            await Product.findByIdAndDelete(id)
+
+            // Another Way
+            // await Product.deleteOne({
+            //     _id: id
+            // })
+
             return res.status(200).json({
                 message: "Product deleted successfully"
             })
