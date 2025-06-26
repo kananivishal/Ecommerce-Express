@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema(
             minlength: 6,
             required: true
         },
-        
+
         role: {
             type: String,
             default: 'user'
@@ -27,13 +27,13 @@ const userSchema = new mongoose.Schema(
             type: String,
             required: true
         },
-        cart:{
-            type:mongoose.Schema.ObjectId,
-            ref:'Cart'
+        cart: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Cart'
         }
     }
 )
 
-const User = mongoose.model('User',userSchema)
+const User = mongoose.model('User', userSchema)
 
 module.exports = { User }

@@ -25,7 +25,7 @@ const singup = async (req, res) => {
 
 
         //jwt token
-        const token = jwt.sign({ email }, "supersecret", { expiresIn: '5m' })
+        const token = jwt.sign({ email }, "supersecret", { expiresIn: '365d' })
 
         //create user in database
         await User.create({
