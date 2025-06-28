@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken')
 const { Cart } = require('../model/Cart')
 const { User } = require('../model/User')
 const { Product } = require('../model/Product')
+const { model } = require('mongoose')
 
 const cart = async (req, res) => {
     try {
@@ -10,7 +11,7 @@ const cart = async (req, res) => {
         const user = await User.findOne({ email: decodedToken.email }).populate({
             path: 'cart',
             populate: {
-                path: 'products',
+                path: 'products.product',
                 model: 'Product'
             }
         })
@@ -20,12 +21,17 @@ const cart = async (req, res) => {
             })
         }
 
+        if (!user.cart || user.cart.products.length === 0) {
+            return res.status(204).json({ message: "No Cart Items" })
+        }
+
         res.status(200).json({
-            message: "Cart creadted successfully",
+            message: "Cart Items retrieved successfully",
             cart: user.cart
         })
 
     } catch (error) {
+        console.log(error.message)
         res.status(500).json({
             message: "Internal server error"
         })
@@ -33,79 +39,25 @@ const cart = async (req, res) => {
 }
 
 // Add to cart
-// const addtocart = async (req, res) => {
-//     try {
-//         let {productid, quantity } = req.body
-//         if (!quantity) {
-//             quantity = 1
-//         }
-//         // let { productid } = req.params
-//         const { token } = req.headers
-//         const decodedToken = jwt.verify(token, 'supersecret')
-//         const user = await User.findOne({ email: decodedToken.email })
-
-//         if (user) {
-//             const product = await Product.findById(productid)
-//             if (!product) {
-//                 return res.status(400).json({
-//                     message: "Product not found"
-//                 })
-//             }
-//             const cart = await Cart.findOne({ user: user._id })
-//             if (!cart) {
-//                 const cart = new Cart({
-//                     user: user._id,
-//                     products: [],
-//                     total: 0
-//                 })
-//                 await cart.save()
-//                 user.cart_id = cart._id
-//                 await user.save()
-//             }
-//             const exists = cart.products.some((p) => { p.product.toString() === productid.toString() })
-//             if (exists) {
-//                 return res.status(409).json({
-//                     message: "GO to cart"
-//                 })
-//             }
-//             cart.products.push({ product: productid, quantity })
-//             cart.total += product.price * quantity
-//             await cart.save()
-//             return res.status(200).json({
-//                 message: "Product Add Successfully"
-//             })
-
-//         }
-//         // return res.status(200).json({
-//         //     message: "Product Allready in cart"
-//         // })
-
-//     } catch (error) {
-//         console.log(error)
-//         res.status(500).json({
-//             message: "Internal server error"
-//         })
-//     }
-// }
 const addtocart = async (req, res) => {
     try {
 
-        let { token } = req.headers
         let { productID, quantity } = req.body
-        let decodedToken = jwt.verify(token, "supersecret")
-        let user = await User.findOne({ email: decodedToken.email })
-
         if (!productID || !quantity) {
             res.status(400).json({ message: "Product or Quantity is missing!!" })
         }
+        let { token } = req.headers
+        let decodedToken = jwt.verify(token, "supersecret")
+        let user = await User.findOne({ email: decodedToken.email })
+
 
         if (user) {
 
-            let product = await Product.findById(productID)
+            const product = await Product.findById(productID)
             const cart = await Cart.findOne({ _id: user.cart_id })
 
             if (cart) {
-                const exits = cart.products.some((p) => {
+                const exits = cart.products.some(p => {
                     p.product.toString() === productID.toString()
                 })
 
@@ -131,15 +83,15 @@ const addtocart = async (req, res) => {
                 await user.save()
             }
 
-            return res.status(200).json({
-                message: "Product added to cart"
-            })
+            return res.status(200).json({ message: "Product added to cart" })
 
+        } else {
+            return res.status(401).json({ message: "Invalid Credentials" })
         }
 
-        if (!user) {
-            res.status(400).json({ message: "user not found" })
-        }
+        // if (!user) {
+        //     res.status(400).json({ message: "user not found" })
+        // }
 
 
 
@@ -149,5 +101,58 @@ const addtocart = async (req, res) => {
     }
 }
 
+// Update Cart
+const updatecart = async (req, res) => {
+    try {
+        const { productID, action } = req.body
+        const { token } = req.headers
+        const decodedToken = jwt.verify(token, "supersecret")
+        const user = await User.findOne({ email: decodedToken.email }).populate({
+            path: "cart",
+            populate: {
+                path: "products.product",
+                model: "Product"
+            }
+        })
+        if (!user || !user.cart) {
+            return res.status(400).json({ message: "Cart not found" })
+        }
+        const cart = user.cart
+        const item = cart.products.find(p => p.product._id.toString() === productID)
+        if (!item) {
+            return res.status(400).json({ message: "Product not found" })
+        }
+        const price = item.product.price
 
-module.exports = { cart, addtocart }
+        // Action logic
+        if (action === "increase") {
+            item.quantity += 1
+            cart.total += price
+        } else if (action === "decrease") {
+            if (item.quantity > 1) {
+                item.quantity -= 1
+                cart.total -= price
+            } else {
+                cart.total -= price
+                cart.products = cart.products.filter(p => p.product._id.toString() !== productID)
+            }
+        } else if (action === "remove") {
+            cart.total -= price * item.quantity
+            cart.products = cart.products.filter(p => p.product._id.toString() !== productID)
+        } else {
+            return res.status(400).json({ message: "Invalid action" })
+        }
+        await cart.save()
+        return res.status(200).json({
+            message: "Cart updated",
+            cart
+        })
+
+    } catch (error) {
+        console.error(error)
+        res.status(500).json({ message: "Intrnal server error" })
+    }
+}
+
+
+module.exports = { cart, addtocart, updatecart }
