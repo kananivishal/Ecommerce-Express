@@ -1,8 +1,9 @@
 const express = require("express")
 const app = express()
 const PORT = 8080
+require('dotenv').config()
 const connectedDB = require('./DB/connectDB')
-const cors =require('cors')
+const cors = require('cors')
 const morgan = require('morgan')
 const routes = require('./routes/index')
 
@@ -12,7 +13,7 @@ connectedDB()
 app.use(cors())
 app.use(morgan('dev'))
 app.use(express.json())
-app.use(express.urlencoded({extended:true}))
+app.use(express.urlencoded({ extended: true }))
 
 //routes
 app.use(routes)

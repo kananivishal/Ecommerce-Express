@@ -3,6 +3,8 @@ const { Cart } = require('../model/Cart')
 const { User } = require('../model/User')
 const { Product } = require('../model/Product')
 const { model } = require('mongoose')
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
+const sendEmail = require('../utils/userEmatl')
 
 const cart = async (req, res) => {
     try {
@@ -22,7 +24,7 @@ const cart = async (req, res) => {
         }
 
         if (!user.cart || user.cart.products.length === 0) {
-            return res.status(204).json({ message: "No Cart Items" })
+            return res.status(200).json({ message: "No Cart Items" })
         }
 
         res.status(200).json({
@@ -50,30 +52,37 @@ const addtocart = async (req, res) => {
         let decodedToken = jwt.verify(token, "supersecret")
         let user = await User.findOne({ email: decodedToken.email })
 
-
         if (user) {
 
             const product = await Product.findById(productID)
-            const cart = await Cart.findOne({ _id: user.cart_id })
 
-            if (cart) {
-                const exits = cart.products.some(p => {
-                    p.product.toString() === productID.toString()
-                })
+            console.log(user.cart)
 
-                if (exits) {
-                    return res.status(409).json({ message: "go to cart" })
+            if (user.cart) {
+
+                const cart = await Cart.findOne({ _id: user.cart })
+
+                if (cart) {
+                    const exists = cart.products.some((p) => {
+                        console.log(p)
+                        p.product.toString() === productID.toString()
+                    })
+                    console.log(exists)
+
+                    if (exists) {
+                        return res.status(404).json({ message: "go to cart" })
+                    }
+
+                    cart.products.push({ product: productID, quantity })
+                    cart.total += product.price * quantity
+                    await cart.save()
                 }
-
-                cart.products.push({ product: productID, quantity })
-                cart.total += product.price * quantity
-                await cart.save()
 
             } else {
                 const newCart = await Cart.create({
                     products: [
                         {
-                            products: productID,
+                            product: productID,
                             quantity: quantity
                         }
                     ],
@@ -83,11 +92,17 @@ const addtocart = async (req, res) => {
                 await user.save()
             }
 
-            return res.status(200).json({ message: "Product added to cart" })
-
-        } else {
-            return res.status(401).json({ message: "Invalid Credentials" })
         }
+        else {
+            return res.status(404).json({ message: "Error" })
+        }
+
+
+        return res.status(200).json({ message: "Product added successfully" })
+
+        //  else {
+        //     return res.status(404).json({ message: "Invalid Credentials" })
+        // }
 
         // if (!user) {
         //     res.status(400).json({ message: "user not found" })
@@ -154,5 +169,64 @@ const updatecart = async (req, res) => {
     }
 }
 
+const payment = async (req, res) => {
+    try {
 
-module.exports = { cart, addtocart, updatecart }
+        const { token } = req.headers
+        const decodedToken = jwt.verify(token, 'supersecret')
+        const user = await User.findOne({ email: decodedToken.email }).populate({
+            path: 'cart',
+            populate: {
+                path: "products.product",
+                model: "Product"
+            }
+        })
+        if (!user || !user.cart || user.cart.products.length === 0) {
+            res.status(404).json({ message: "User or cartnot found" })
+        }
+        // Payment
+        const lineItems = user.cart.products.map((item) => {
+            return {
+                price_data: {
+                    currency: "inr",
+                    product_data: {
+                        name: item.product.name,
+                    },
+                    unit_amount: item.product.price * 100
+                },
+                quantity: item.quantity
+            }
+        })
+        const currentUrl = process.env.CLIENT_URL
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ["card"],
+            line_items: lineItems,
+            mode: "payment",
+            success_url: `${currentUrl}/success`,
+            cancel_url: `${currentUrl}/cancel`
+        })
+
+        // send email to user
+        await sendEmail(
+            user.email,
+            user.cart.products.map((item) => ({
+                name: item.product.name,
+                price: item.product.price
+            }))
+        )
+
+        // Empty cart
+        user.cart.products = []
+        user.cart.total = 0
+        await user.cart.save()
+        await user.save()
+        res.status(200).json({ message: "get the payment url", url: session.url })
+
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({ message: "Internal server error" })
+    }
+}
+
+
+module.exports = { cart, addtocart, updatecart, payment }
