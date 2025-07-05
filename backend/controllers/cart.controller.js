@@ -33,7 +33,7 @@ const cart = async (req, res) => {
         })
 
     } catch (error) {
-        console.log(error.message)
+        // console.log(error.message)
         res.status(500).json({
             message: "Internal server error"
         })
@@ -53,31 +53,20 @@ const addtocart = async (req, res) => {
         let user = await User.findOne({ email: decodedToken.email })
 
         if (user) {
-
             const product = await Product.findById(productID)
-
-            console.log(user.cart)
-
             if (user.cart) {
-
                 const cart = await Cart.findOne({ _id: user.cart })
-
                 if (cart) {
                     const exists = cart.products.some((p) => {
-                        console.log(p)
-                        p.product.toString() === productID.toString()
+                        return p.product.toString() === productID.toString()
                     })
-                    console.log(exists)
-
                     if (exists) {
                         return res.status(404).json({ message: "go to cart" })
                     }
-
                     cart.products.push({ product: productID, quantity })
                     cart.total += product.price * quantity
                     await cart.save()
                 }
-
             } else {
                 const newCart = await Cart.create({
                     products: [
@@ -91,27 +80,13 @@ const addtocart = async (req, res) => {
                 user.cart = newCart._id
                 await user.save()
             }
-
         }
         else {
             return res.status(404).json({ message: "Error" })
         }
-
-
         return res.status(200).json({ message: "Product added successfully" })
-
-        //  else {
-        //     return res.status(404).json({ message: "Invalid Credentials" })
-        // }
-
-        // if (!user) {
-        //     res.status(400).json({ message: "user not found" })
-        // }
-
-
-
     } catch (error) {
-        console.log(error)
+        // console.log(error)
         res.status(500).json({ message: "Internal server error" })
     }
 }
@@ -182,7 +157,7 @@ const payment = async (req, res) => {
             }
         })
         if (!user || !user.cart || user.cart.products.length === 0) {
-            res.status(404).json({ message: "User or cartnot found" })
+            res.status(404).json({ message: "User or cart not found" })
         }
         // Payment
         const lineItems = user.cart.products.map((item) => {
@@ -223,7 +198,7 @@ const payment = async (req, res) => {
         res.status(200).json({ message: "get the payment url", url: session.url })
 
     } catch (error) {
-        console.log(error)
+        // console.log(error)
         return res.status(500).json({ message: "Internal server error" })
     }
 }

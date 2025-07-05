@@ -72,9 +72,7 @@ const singleproduct = async (req, res) => {
         if (user) {
             const product = await Product.findById(id)
             if (!product) {
-                res.status(400).json({
-                    message: "Product not found"
-                })
+                res.status(400).json({ message: "Product not found" })
             }
             return res.status(200).json({
                 message: "Product found successfully",
@@ -148,7 +146,7 @@ const updateproduct = async (req, res) => {
 
         }
     } catch (error) {
-        console.log(error)
+        // console.log(error)
         res.status(500).json({
             message: "Internal Server Error"
         })

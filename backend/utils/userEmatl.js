@@ -10,16 +10,16 @@ const sendEmail = async (userEmail, productArray) => {
     })
 
     // prepare product details in text format
-    const productDetails = productArray.map((product, item) => {
-        `${index + 1}.name: ${product.Name}.Price:${product.price}`
-    })
+    const productDetails = productArray.map((product, item) =>
+        `${item + 1}.name: ${product.name}.Price:${product.price}`
+    )
 
     // setup mail content
     const mailOptions = {
         from: process.env.NODE_EMAIL,
         to: userEmail,
         subject: "Your order details",
-        text: `Thanks for purchase! \n\n here is your product details ${productDetails}`
+        text: `Thanks for purchase! \n\n here is your product details\n ${productDetails}`
     }
     try {
         await transporter.sendMail(mailOptions)
